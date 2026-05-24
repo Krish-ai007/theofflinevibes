@@ -2,16 +2,16 @@ import { useState, useEffect, useRef } from "react";
 
 // ─── FIREBASE CONFIG (already configured) ───────────────────
 const FB_CONFIG = {
-  apiKey: "AIzaSyB34f-TnV8ueA2XONEC6nXXhhPmIOKZ5mU",
-  authDomain: "theofflinevibes-ff9b6.firebaseapp.com",
-  projectId: "theofflinevibes-ff9b6",
-  storageBucket: "theofflinevibes-ff9b6.firebasestorage.app",
-  messagingSenderId: "385394122406",
-  appId: "1:385394122406:web:8abf83d6a574fe77575e67",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 // ─── ADMIN CREDENTIALS (change these!) ──────────────────────
-const ADMIN_PASSWORD = "offlinevibes2025";
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
 
 let _db = null;
 function db() {
