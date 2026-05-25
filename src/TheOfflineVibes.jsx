@@ -11,7 +11,7 @@ const FB_CONFIG = {
 };
 
 // ─── ADMIN CREDENTIALS (change these!) ──────────────────────
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
+
 
 let _db = null;
 function db() {
@@ -20,6 +20,22 @@ function db() {
   if (!window.firebase.apps?.length) window.firebase.initializeApp(FB_CONFIG);
   _db = window.firebase.firestore();
   return _db;
+}
+function authInstance() {
+  if (!window.firebase) return null;
+  if (!window.firebase.apps?.length) window.firebase.initializeApp(FB_CONFIG);
+  return window.firebase.auth();
+}
+async function loginWithEmail(email, password) {
+  return authInstance().signInWithEmailAndPassword(email, password);
+}
+async function logoutUser() {
+  return authInstance().signOut();
+}
+function onAuthChange(callback) {
+  const a = authInstance();
+  if (!a) return () => {};
+  return a.onAuthStateChanged(callback);
 }
 const LS = {
   get: (k) => { try { return JSON.parse(localStorage.getItem(k)||"null"); } catch { return null; } },
@@ -1405,26 +1421,47 @@ function Footer({ onAdmin }) {
 
 // ─── ADMIN LOGIN ─────────────────────────────────────────────
 function AdminLogin({ onSuccess, onCancel }) {
-  const [pw,setPw]=useState(""); const [err,setErr]=useState("");
-  const login = () => {
-    if (pw===ADMIN_PASSWORD) { sessionStorage.setItem("tov_admin","1"); onSuccess(); }
-    else { setErr("Wrong password. Try again."); setPw(""); }
+  const [email,setEmail]=useState("");
+  const [pw,setPw]=useState("");
+  const [err,setErr]=useState("");
+  const [busy,setBusy]=useState(false);
+
+  const login = async () => {
+    if (!email.trim()||!pw.trim()) return setErr("Please enter email and password.");
+    setBusy(true); setErr("");
+    try {
+      await loginWithEmail(email.trim(), pw);
+      onSuccess();
+    } catch(e) {
+      setErr("Wrong email or password. Try again.");
+      setPw("");
+    } finally {
+      setBusy(false);
+    }
   };
+
   return (
     <div className="admin-login-wrap">
       <div className="admin-login-box">
         <div className="admin-login-icon">🔐</div>
         <h2 className="admin-login-h">Admin Access</h2>
-        <p className="admin-login-sub">Enter the admin password to access the dashboard.</p>
-        <input className="inp" type="password" placeholder="Enter password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} autoFocus/>
+        <p className="admin-login-sub">Sign in with your admin account to access the dashboard.</p>
+        <input className="inp" type="email" placeholder="Admin email" value={email}
+          onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}
+          autoFocus style={{marginBottom:10}}
+        />
+        <input className="inp" type="password" placeholder="Password" value={pw}
+          onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}
+        />
         {err && <p className="admin-login-err">{err}</p>}
-        <button className="btn btn-sun" style={{width:"100%",justifyContent:"center",marginTop:16}} onClick={login}>Unlock Dashboard →</button>
+        <button className="btn btn-sun" style={{width:"100%",justifyContent:"center",marginTop:16}} onClick={login} disabled={busy}>
+          {busy?"Signing in…":"Unlock Dashboard →"}
+        </button>
         <button className="btn btn-neutral btn-sm" style={{width:"100%",justifyContent:"center",marginTop:10}} onClick={onCancel}>Cancel</button>
       </div>
     </div>
   );
 }
-
 // ─── ADMIN PANEL ─────────────────────────────────────────────
 function AdminPanel({ onClose }) {
   const [tab,setTab]=useState("dashboard");
@@ -1472,7 +1509,7 @@ function AdminPanel({ onClose }) {
     const csv = [keys.join(","),...data.map(r=>keys.map(k=>`"${r[k]||""}"`).join(","))].join("\n");
     const a = document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=`${name}.csv`; a.click();
   };
-  const logout = () => { sessionStorage.removeItem("tov_admin"); onClose(); };
+  const logout = async () => { await logoutUser(); onClose(); };
 
   const pendingHosts = hosts.filter(h=>h.status==="pending").length;
   const pendingCh = chLeads.filter(c=>c.status==="pending").length;
@@ -1712,6 +1749,7 @@ export default function App() {
   const [popup,setPopup]=useState(false);
   const [showAdminLogin,setShowAdminLogin]=useState(false);
   const [showAdmin,setShowAdmin]=useState(false);
+  const [adminUser,setAdminUser]=useState(null);
   const [host,setHost]=useState(false);
   const [events,setEvents]=useState([]);
   const [photos,setPhotos]=useState([]);
@@ -1720,7 +1758,15 @@ export default function App() {
   useEffect(()=>{
     const t = setTimeout(()=>setPopup(true), 1400);
     loadData();
-    return ()=>clearTimeout(t);
+    let unsub = () => {};
+    const timer = setTimeout(() => {
+      unsub = onAuthChange((user) => {
+        setAdminUser(user);
+        if (user) { setShowAdminLogin(false); setShowAdmin(true); }
+        else { setShowAdmin(false); }
+      });
+    }, 500);
+    return () => { clearTimeout(t); clearTimeout(timer); unsub(); };
   },[]);
 
   const loadData = async () => {
@@ -1728,15 +1774,11 @@ export default function App() {
     setEvents(ev); setPhotos(ph); setRegistrations(regs);
   };
 
-  // Next upcoming event = first in list (newest by createdAt)
-  // Filter to find ones with a future date if possible, else just take first
   const nextEvent = events.length > 0 ? events[0] : null;
-  const nextEventRegs = nextEvent
-    ? registrations.filter(r => r.eventId === nextEvent.id).length
-    : 0;
+  const nextEventRegs = nextEvent ? registrations.filter(r => r.eventId === nextEvent.id).length : 0;
 
   const handleAdminClick = () => {
-    if (sessionStorage.getItem("tov_admin")==="1") setShowAdmin(true);
+    if (adminUser) setShowAdmin(true);
     else setShowAdminLogin(true);
   };
 
@@ -1745,8 +1787,15 @@ export default function App() {
       <style>{STYLES}</style>
       <Cursor/>
       {popup && <Popup onClose={()=>setPopup(false)}/>}
-      {showAdminLogin && <AdminLogin onSuccess={()=>{setShowAdminLogin(false);setShowAdmin(true);}} onCancel={()=>setShowAdminLogin(false)}/>}
-      {showAdmin && <AdminPanel onClose={()=>{setShowAdmin(false);loadData();}}/>}
+      {showAdminLogin && (
+        <AdminLogin
+          onSuccess={()=>{ setShowAdminLogin(false); setShowAdmin(true); }}
+          onCancel={()=>setShowAdminLogin(false)}
+        />
+      )}
+      {showAdmin && adminUser && (
+        <AdminPanel onClose={()=>setShowAdmin(false)} adminUser={adminUser}/>
+      )}
       {host && <HostModal onClose={()=>setHost(false)}/>}
       <Navbar onJoin={()=>setPopup(true)}/>
       <Hero onJoin={()=>setPopup(true)} nextEvent={nextEvent} registrationCount={nextEventRegs}/>
