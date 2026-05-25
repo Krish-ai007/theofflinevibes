@@ -1071,7 +1071,7 @@ function Hero({ onJoin, nextEvent, registrationCount }) {
             <button className="btn btn-outline-ink" onClick={onJoin}>Join Community</button>
           </div>
           <div className="hero-stats">
-            {[["2K+","Members"],["50+","Events Done"],["3","Cities"],["98%","Return Rate"]].map(([n,l])=>(
+            {[["Growing","Members"],["Founding","Events Done"],["Surat","Cities"],["100%","Return Rate"]].map(([n,l])=>(
               <div key={l}><div className="hero-stat-n">{n}</div><div className="hero-stat-l">{l}</div></div>
             ))}
           </div>
@@ -1212,7 +1212,7 @@ function Stats() {
   return (
     <section className="stats-strip">
       <div className="stats-row">
-        {[["2K+","Community Members"],["50+","Events Hosted"],["3","Cities & Growing"],["98%","Come Back Again"]].map(([n,l])=>(
+        {[["Growing","Members"],["Founding","Events Done"],["Surat","Cities"],["100%","Return Rate"]].map(([n,l])=>(
           <div className="stat-cell" key={l}><div className="stat-n">{n}</div><div className="stat-l">{l}</div></div>
         ))}
       </div>
