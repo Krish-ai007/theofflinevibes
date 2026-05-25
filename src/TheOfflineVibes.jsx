@@ -799,6 +799,32 @@ footer { background:#111; padding:72px 52px 36px; border-top:1px solid rgba(255,
   .cta-form { flex-direction:column; }
   .events-top { flex-direction:column; align-items:flex-start; gap:14px; }
   .inp-row { grid-template-columns:1fr; }
+
+  /* ── MOBILE STATS FIX ── */
+  .stats-row {
+    grid-template-columns: 1fr 1fr;
+    border-radius: 16px;
+  }
+  .stat-cell {
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    padding: 24px 16px;
+  }
+  .stat-n { font-size: 32px; }
+
+  /* ── MOBILE HERO STATS FIX ── */
+  .hero-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    flex-wrap: unset;
+  }
+  .hero-stat-n { font-size: 20px; }
+
+  /* ── MOBILE HERO TEXT FIX ── */
+  .hero-inner { padding: 80px 22px 48px; gap: 32px; }
+  .hero-sub { font-size: 15px; }
+  .hero-h1 { font-size: 42px; }
 }
 `;
 
