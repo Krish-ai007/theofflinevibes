@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-
+// At the top of TheOfflineVibes.jsx
+import { EventModal, ScanPage } from "./EventRegistration";
 // ─── FIREBASE CONFIG (already configured) ───────────────────
 const FB_CONFIG = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -901,78 +902,7 @@ function Popup({ onClose }) {
 }
 
 // ─── EVENT REGISTER MODAL ────────────────────────────────────
-function EventModal({ event, onClose }) {
-  const [step,setStep]=useState(1);
-  const [f,setF]=useState({name:"",email:"",phone:"",city:""});
-  const [busy,setBusy]=useState(false); const [tid,setTid]=useState("");
-  const upd = k => e => setF(p=>({...p,[k]:e.target.value}));
-  const goPayment = () => {
-    if (!f.name||!f.email||!f.phone||!f.city) return alert("Please fill all fields");
-    setStep(2);
-  };
-  const confirmPay = async () => {
-    setBusy(true);
-    const t = "TOV-"+genId(); setTid(t);
-    await fbAdd("registrations", {...f, eventId:event.id, eventTitle:event.title, eventDate:event.date, eventVenue:event.venue, ticketId:t, price:event.price, status:"paid", date:nowDate(), time:nowTime()});
-    setBusy(false); setStep(3);
-  };
-  const qd = step===2
-    ? `Pay ₹${event.price} to theofflinevibes@upi | ${f.name} | ${event.title}`
-    : `TICKET:${tid}|EVENT:${event.title}|DATE:${event.date}|NAME:${f.name}|PAID:₹${event.price}|STATUS:PAID`;
-  return (
-    <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="modal-box">
-        <div className="modal-hd">
-          <div>
-            <div className="modal-hd-title">{step===1?"Register for Event":step===2?"Complete Payment":"Your Entry Ticket 🎉"}</div>
-            <div className="modal-hd-sub">{event.title}</div>
-          </div>
-          <button className="modal-x" onClick={onClose}>✕</button>
-        </div>
-        <div className="modal-body">
-          {step===1 && <>
-            <div className="field"><label>Full Name *</label><input className="inp" placeholder="Your name" value={f.name} onChange={upd("name")}/></div>
-            <div className="inp-row">
-              <div className="field"><label>Email *</label><input className="inp" type="email" placeholder="you@email.com" value={f.email} onChange={upd("email")}/></div>
-              <div className="field"><label>WhatsApp *</label><input className="inp" type="tel" placeholder="98765 43210" value={f.phone} onChange={upd("phone")}/></div>
-            </div>
-            <div className="field"><label>Your City *</label><input className="inp" placeholder="Surat" value={f.city} onChange={upd("city")}/></div>
-            <div style={{background:"var(--sun-lt)",border:"1px solid rgba(255,112,67,.2)",borderRadius:12,padding:16,marginBottom:18}}>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:14,fontWeight:700,color:"var(--ink)"}}><span>{event.title}</span><span style={{color:"var(--sun)"}}>₹{event.price}</span></div>
-              <div style={{fontSize:12,color:"var(--ink2)",marginTop:4}}>{event.date} · {event.venue}</div>
-            </div>
-            <button className="btn btn-sun" style={{width:"100%",justifyContent:"center"}} onClick={goPayment}>Continue to Payment →</button>
-          </>}
-          {step===2 && <div className="pay-box">
-            <div style={{fontFamily:"Unbounded,sans-serif",fontSize:11,fontWeight:700,color:"var(--sun)",letterSpacing:2,marginBottom:8,textTransform:"uppercase"}}>Scan & Pay</div>
-            <div style={{fontFamily:"Unbounded,sans-serif",fontSize:36,fontWeight:900,color:"var(--sun)",marginBottom:4}}>₹{event.price}</div>
-            <div style={{fontSize:13,color:"var(--ink2)",marginBottom:8}}>{event.title}</div>
-            <div className="qr-ring"><img src={qrUrl(qd)} alt="Payment QR"/></div>
-            <div style={{fontSize:12,color:"var(--ink2)",marginBottom:6}}>UPI: <b style={{color:"var(--sun)"}}>theofflinevibes@upi</b></div>
-            <div style={{fontSize:11,color:"var(--ink3)",marginBottom:18,lineHeight:1.5}}>After paying, click the button below to get your entry ticket</div>
-            <button className="btn btn-sun" style={{width:"100%",justifyContent:"center"}} onClick={confirmPay} disabled={busy}>{busy?"Generating…":"I've Paid — Get My Ticket →"}</button>
-          </div>}
-          {step===3 && <>
-            <div className="ticket-card">
-              <div style={{textAlign:"center",marginBottom:16}}>
-                <div style={{fontFamily:"Unbounded,sans-serif",fontSize:11,fontWeight:700,color:"var(--sun)",letterSpacing:2,textTransform:"uppercase"}}>The Offline Vibes</div>
-                <div style={{fontSize:10,color:"var(--ink3)",letterSpacing:2}}>ENTRY PASS</div>
-              </div>
-              <div className="ticket-qr"><img src={qrUrl(qd)} alt="Entry QR"/></div>
-              <div className="ticket-id">{tid}</div>
-              <div className="ticket-divider"/>
-              {[["Event",event.title],["Date",event.date],["Venue",event.venue||"—"],["Name",f.name],["Contact",f.phone],["Paid",`₹${event.price}`],["Status","✅ CONFIRMED"]].map(([k,v])=>(
-                <div className="ticket-row" key={k}><span className="ticket-k">{k}</span><span className="ticket-v">{v}</span></div>
-              ))}
-            </div>
-            <div style={{textAlign:"center",marginTop:14,fontSize:12,color:"var(--ink2)",lineHeight:1.6}}>📲 Show this QR at the venue entry. Screenshot it!</div>
-            <button className="btn btn-sun" style={{marginTop:18,width:"100%",justifyContent:"center"}} onClick={()=>window.print()}>🖨️ Print / Download Ticket</button>
-          </>}
-        </div>
-      </div>
-    </div>
-  );
-}
+
 
 // ─── HOST MODAL ───────────────────────────────────────────────
 function HostModal({ onClose }) {
@@ -1498,7 +1428,12 @@ function AdminPanel({ onClose }) {
   const [chLeads,setChLeads]=useState([]);
   const [photos,setPhotos]=useState([]);
   const [loading,setLoading]=useState(true);
-  const [newEv,setNewEv]=useState({title:"",date:"",venue:"",price:"",spots:"",type:"",description:"",emoji:"🎉",color:""});
+ const [newEv,setNewEv]=useState({
+  title:"", date:"", venue:"", price:"", spots:"",
+  type:"", description:"", emoji:"🎉", color:"",
+  // ── new fields ──
+  timing:"", location:"", refreshments:"", activities:"", imageUrl:""
+});
   const [photoUrl,setPhotoUrl]=useState(""); const [photoCap,setPhotoCap]=useState("");
   const [saving,setSaving]=useState(false); const [saveMsg,setSaveMsg]=useState("");
 
@@ -1511,11 +1446,12 @@ function AdminPanel({ onClose }) {
   useEffect(()=>{ load(); },[]);
 
   const saveEv = async () => {
-    if (!newEv.title||!newEv.date||!newEv.price) return alert("Title, date and price required");
+   const priceOk = newEv.price==="0" || newEv.price===0 || (newEv.price!=="" && newEv.price!==null);
+if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price required");
     setSaving(true);
     await fbAdd("events",{...newEv,highlighted:true});
     setSaveMsg("✅ Event published! It's now live on the website.");
-    setNewEv({title:"",date:"",venue:"",price:"",spots:"",type:"",description:"",emoji:"🎉",color:""});
+    setNewEv({title:"",date:"",venue:"",price:"",spots:"",type:"",description:"",emoji:"🎉",color:"",timing:"",location:"",refreshments:"",activities:"",imageUrl:""});
     await load(); setSaving(false); setTimeout(()=>setSaveMsg(""),4000);
   };
   const delEv = async id => {
@@ -1665,44 +1601,258 @@ function AdminPanel({ onClose }) {
           <div className="adm-card">
             <div className="adm-card-h">Create New Event</div>
             {saveMsg && <div className="msg-ok">{saveMsg}</div>}
+
+            {/* ── Row 1: Title + Type ── */}
             <div className="adm-2col">
-              <div className="adm-fg"><label className="adm-lbl">Event Title *</label><input className="adm-inp" placeholder="Forest Detox Camp" value={newEv.title} onChange={e=>setNewEv(p=>({...p,title:e.target.value}))}/></div>
-              <div className="adm-fg"><label className="adm-lbl">Event Type</label><input className="adm-inp" placeholder="Detox Camp / Trek / Café Night" value={newEv.type} onChange={e=>setNewEv(p=>({...p,type:e.target.value}))}/></div>
-              <div className="adm-fg"><label className="adm-lbl">Date *</label><input className="adm-inp" type="date" value={newEv.date} onChange={e=>setNewEv(p=>({...p,date:e.target.value}))}/></div>
-              <div className="adm-fg"><label className="adm-lbl">Venue</label><input className="adm-inp" placeholder="Surat Outskirts" value={newEv.venue} onChange={e=>setNewEv(p=>({...p,venue:e.target.value}))}/></div>
-              <div className="adm-fg"><label className="adm-lbl">Price (₹) *</label><input className="adm-inp" type="number" placeholder="2500" value={newEv.price} onChange={e=>setNewEv(p=>({...p,price:e.target.value}))}/></div>
-              <div className="adm-fg"><label className="adm-lbl">Spots Available</label><input className="adm-inp" type="number" placeholder="30" value={newEv.spots} onChange={e=>setNewEv(p=>({...p,spots:e.target.value}))}/></div>
-              <div className="adm-fg"><label className="adm-lbl">Emoji</label><input className="adm-inp" placeholder="🎉" value={newEv.emoji} onChange={e=>setNewEv(p=>({...p,emoji:e.target.value}))}/></div>
-              <div className="adm-fg"><label className="adm-lbl">Card Image URL (optional)</label><input className="adm-inp" placeholder="https://..." value={newEv.imageUrl||""} onChange={e=>setNewEv(p=>({...p,imageUrl:e.target.value}))}/></div>
+              <div className="adm-fg">
+                <label className="adm-lbl">Event Title *</label>
+                <input className="adm-inp" placeholder="Forest Detox Camp"
+                  value={newEv.title} onChange={e=>setNewEv(p=>({...p,title:e.target.value}))}/>
+              </div>
+              <div className="adm-fg">
+                <label className="adm-lbl">Event Type</label>
+                <input className="adm-inp" placeholder="Detox Camp / Trek / Café Night"
+                  value={newEv.type} onChange={e=>setNewEv(p=>({...p,type:e.target.value}))}/>
+              </div>
             </div>
-            <div className="adm-fg"><label className="adm-lbl">Description</label><textarea className="adm-ta" placeholder="Event description…" value={newEv.description} onChange={e=>setNewEv(p=>({...p,description:e.target.value}))}/></div>
-            <button className="btn btn-sun" onClick={saveEv} disabled={saving}>{saving?"Publishing…":"Publish Event 🎪"}</button>
-          </div>
-          <div className="adm-card">
-            <div className="adm-card-h">All Events <button className="btn btn-sm btn-dark" onClick={()=>exportCSV(events,"events")}>📥 CSV</button></div>
-            {events.length===0 ? <p style={{color:"var(--ink3)"}}>No events yet. Create one above!</p> : (
-              <table className="adm-tbl">
-                <thead><tr><th>Title</th><th>Type</th><th>Date</th><th>Venue</th><th>Price</th><th>Spots</th><th>Action</th></tr></thead>
-                <tbody>{events.map(ev=>(
-                  <tr key={ev.id}><td style={{fontWeight:700}}>{ev.emoji} {ev.title}</td><td style={{color:"var(--ink3)"}}>{ev.type||"—"}</td><td>{ev.date}</td><td style={{color:"var(--ink3)"}}>{ev.venue||"—"}</td><td style={{color:"var(--sun)",fontWeight:700}}>₹{ev.price}</td><td>{ev.spots||"—"}</td>
-                    <td><button className="btn btn-danger-soft btn-sm" onClick={()=>delEv(ev.id)}>Delete</button></td></tr>
-                ))}</tbody>
-              </table>
+
+            {/* ── Row 2: Date + Timing ── */}
+            <div className="adm-2col">
+              <div className="adm-fg">
+                <label className="adm-lbl">Date *</label>
+                <input className="adm-inp" type="date"
+                  value={newEv.date} onChange={e=>setNewEv(p=>({...p,date:e.target.value}))}/>
+              </div>
+              <div className="adm-fg">
+                <label className="adm-lbl">Event Timing</label>
+                <input className="adm-inp" placeholder="6:00 PM – 10:00 PM"
+                  value={newEv.timing||""} onChange={e=>setNewEv(p=>({...p,timing:e.target.value}))}/>
+              </div>
+            </div>
+
+            {/* ── Row 3: Venue + Full Location ── */}
+            <div className="adm-2col">
+              <div className="adm-fg">
+                <label className="adm-lbl">Venue (short name)</label>
+                <input className="adm-inp" placeholder="Surat Outskirts"
+                  value={newEv.venue} onChange={e=>setNewEv(p=>({...p,venue:e.target.value}))}/>
+              </div>
+              <div className="adm-fg">
+                <label className="adm-lbl">Full Address / Location</label>
+                <input className="adm-inp" placeholder="Vansda National Park, Navsari, Gujarat"
+                  value={newEv.location||""} onChange={e=>setNewEv(p=>({...p,location:e.target.value}))}/>
+              </div>
+            </div>
+
+            {/* ── Row 4: Price toggle + Spots ── */}
+            <div className="adm-2col">
+              <div className="adm-fg">
+                <label className="adm-lbl">Entry Fee (₹)</label>
+                {/* Free toggle */}
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                  <label style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",fontSize:13,fontWeight:600,color:"var(--ink2)"}}>
+                    <input
+                      type="checkbox"
+                      checked={newEv.price==="0"||newEv.price===0||newEv.price===""}
+                      onChange={e=>setNewEv(p=>({...p,price:e.target.checked?"0":""}))}
+                      style={{width:16,height:16,accentColor:"var(--grass)",cursor:"pointer"}}
+                    />
+                    <span>This is a <b style={{color:"var(--grass)"}}>FREE</b> event</span>
+                  </label>
+                </div>
+                <input
+                  className="adm-inp"
+                  type="number"
+                  placeholder="2500"
+                  value={newEv.price==="0"?"":newEv.price}
+                  disabled={newEv.price==="0"||newEv.price===0}
+                  style={newEv.price==="0"?{opacity:.4,cursor:"not-allowed"}:{}}
+                  onChange={e=>setNewEv(p=>({...p,price:e.target.value}))}
+                />
+                {(newEv.price==="0"||newEv.price===0)&&(
+                  <div style={{fontSize:11,color:"var(--grass)",fontWeight:700,marginTop:4}}>
+                    ✅ Free event — no payment required
+                  </div>
+                )}
+              </div>
+              <div className="adm-fg">
+                <label className="adm-lbl">Spots Available</label>
+                <input className="adm-inp" type="number" placeholder="30"
+                  value={newEv.spots} onChange={e=>setNewEv(p=>({...p,spots:e.target.value}))}/>
+              </div>
+            </div>
+
+            {/* ── Row 5: Refreshments + Activities ── */}
+            <div className="adm-2col">
+              <div className="adm-fg">
+                <label className="adm-lbl">
+                  Refreshments
+                  <span style={{fontSize:10,fontWeight:500,color:"var(--ink3)",marginLeft:6,textTransform:"none",letterSpacing:0}}>
+                    (leave blank = not included)
+                  </span>
+                </label>
+                <input className="adm-inp"
+                  placeholder="Tea, Biscuits, Bonfire Snacks"
+                  value={newEv.refreshments||""}
+                  onChange={e=>setNewEv(p=>({...p,refreshments:e.target.value}))}/>
+                <div style={{fontSize:11,color:"var(--ink3)",marginTop:4}}>
+                  Comma-separated · blank = "Not included" shown to registrant
+                </div>
+              </div>
+              <div className="adm-fg">
+                <label className="adm-lbl">Games & Activities</label>
+                <input className="adm-inp"
+                  placeholder="Trekking, Journaling, Group Bonfire, Games"
+                  value={newEv.activities||""}
+                  onChange={e=>setNewEv(p=>({...p,activities:e.target.value}))}/>
+                <div style={{fontSize:11,color:"var(--ink3)",marginTop:4}}>
+                  Comma-separated · shown as chips on registration page
+                </div>
+              </div>
+            </div>
+
+            {/* ── Row 6: Emoji + Image URL ── */}
+            <div className="adm-2col">
+              <div className="adm-fg">
+                <label className="adm-lbl">Emoji</label>
+                <input className="adm-inp" placeholder="🎉"
+                  value={newEv.emoji} onChange={e=>setNewEv(p=>({...p,emoji:e.target.value}))}/>
+              </div>
+              <div className="adm-fg">
+                <label className="adm-lbl">Card Image URL (optional)</label>
+                <input className="adm-inp" placeholder="https://i.imgur.com/..."
+                  value={newEv.imageUrl||""} onChange={e=>setNewEv(p=>({...p,imageUrl:e.target.value}))}/>
+              </div>
+            </div>
+
+            {/* ── Description ── */}
+            <div className="adm-fg">
+              <label className="adm-lbl">Description</label>
+              <textarea className="adm-ta" placeholder="Describe the event — what to expect, what to bring, vibe…"
+                value={newEv.description} onChange={e=>setNewEv(p=>({...p,description:e.target.value}))}/>
+            </div>
+
+            {/* ── Preview strip ── */}
+            {newEv.title && (
+              <div style={{
+                background:"var(--paper)",border:"1.5px solid var(--border2)",
+                borderRadius:14,padding:"14px 18px",marginBottom:16,
+                display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"
+              }}>
+                <div style={{fontSize:28}}>{newEv.emoji||"🎉"}</div>
+                <div style={{flex:1,minWidth:180}}>
+                  <div style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:800,fontSize:15,color:"var(--ink)",marginBottom:3}}>
+                    {newEv.title}
+                  </div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    {newEv.date&&<span style={{fontSize:11,color:"var(--ink3)"}}>📅 {newEv.date}</span>}
+                    {newEv.timing&&<span style={{fontSize:11,color:"var(--ink3)"}}>⏰ {newEv.timing}</span>}
+                    {newEv.venue&&<span style={{fontSize:11,color:"var(--ink3)"}}>📍 {newEv.venue}</span>}
+                  </div>
+                </div>
+                <div style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:800,fontSize:20}}>
+                  {newEv.price==="0"||newEv.price===0
+                    ? <span style={{color:"var(--grass)"}}>FREE</span>
+                    : newEv.price
+                    ? <span style={{color:"var(--sun)"}}>₹{newEv.price}</span>
+                    : <span style={{color:"var(--ink3)"}}>₹ —</span>
+                  }
+                </div>
+              </div>
             )}
+
+            <button className="btn btn-sun" onClick={saveEv} disabled={saving}>
+              {saving?"Publishing…":"Publish Event 🎪"}
+            </button>
+          </div>
+
+          {/* ── ALL EVENTS TABLE ── */}
+          <div className="adm-card">
+            <div className="adm-card-h">
+              All Events ({events.length})
+              <button className="btn btn-sm btn-dark" onClick={()=>exportCSV(events,"events")}>📥 CSV</button>
+            </div>
+            {events.length===0
+              ? <p style={{color:"var(--ink3)"}}>No events yet. Create one above!</p>
+              : (
+                <div style={{overflowX:"auto"}}>
+                  <table className="adm-tbl">
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Type</th>
+                        <th>Date</th>
+                        <th>Timing</th>
+                        <th>Venue</th>
+                        <th>Price</th>
+                        <th>Spots</th>
+                        <th>Refresh.</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {events.map(ev=>(
+                        <tr key={ev.id}>
+                          <td style={{fontWeight:700,whiteSpace:"nowrap"}}>{ev.emoji} {ev.title}</td>
+                          <td style={{color:"var(--ink3)",fontSize:12}}>{ev.type||"—"}</td>
+                          <td style={{whiteSpace:"nowrap"}}>{ev.date||"—"}</td>
+                          <td style={{color:"var(--ink3)",fontSize:12,whiteSpace:"nowrap"}}>{ev.timing||"—"}</td>
+                          <td style={{color:"var(--ink3)",fontSize:12}}>{ev.venue||"—"}</td>
+                          <td style={{fontWeight:700,whiteSpace:"nowrap"}}>
+                            {ev.price==="0"||ev.price===0
+                              ? <span style={{color:"var(--grass)"}}>FREE</span>
+                              : <span style={{color:"var(--sun)"}}>₹{ev.price}</span>
+                            }
+                          </td>
+                          <td>{ev.spots||"—"}</td>
+                          <td style={{fontSize:12}}>
+                            {ev.refreshments
+                              ? <span style={{color:"var(--grass)",fontWeight:700}}>✅ Yes</span>
+                              : <span style={{color:"var(--ink3)"}}>—</span>
+                            }
+                          </td>
+                          <td>
+                            <button className="btn btn-danger-soft btn-sm"
+                              onClick={()=>delEv(ev.id)}>Delete</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            }
           </div>
         </>}
-
-        {/* REGISTRATIONS */}
+{/* REGISTRATIONS */}
         {!loading && tab==="registrations" && (
           <div className="adm-card">
             <div className="adm-card-h">Event Registrations <button className="btn btn-sm btn-dark" onClick={()=>exportCSV(regs,"registrations")}>📥 Export</button></div>
             {regs.length===0 ? <p style={{color:"var(--ink3)"}}>No registrations yet.</p> : (
               <div style={{overflowX:"auto"}}><table className="adm-tbl">
-                <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>City</th><th>Event</th><th>Ticket ID</th><th>Price</th><th>Date</th><th>Status</th><th>Contact</th></tr></thead>
+                <thead><tr><th>#</th><th>Name</th><th>Gender</th><th>Phone</th><th>Email</th><th>Event</th><th>Ticket ID</th><th>Price</th><th>Attended</th><th>Date</th><th>Contact</th></tr></thead>
                 <tbody>{regs.map((r,i)=>(
-                  <tr key={r.id}><td style={{color:"var(--ink3)"}}>{regs.length-i}</td><td style={{fontWeight:700}}>{r.name}</td><td style={{color:"var(--ink3)",fontSize:12}}>{r.email}</td><td>{r.phone}</td><td>{r.city}</td><td style={{maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",fontSize:12}}>{r.eventTitle}</td><td style={{fontFamily:"monospace",color:"var(--sun)",fontSize:11}}>{r.ticketId}</td><td style={{color:"var(--sun)",fontWeight:700}}>₹{r.price}</td><td style={{color:"var(--ink3)",fontSize:12}}>{r.date}</td>
-                  <td><span className={`pill ${r.status==="paid"?"pill-paid":"pill-pending"}`}>{r.status}</span></td>
-                  <td><a className="contact-btn" href={`https://wa.me/91${r.phone?.replace(/[\s\-+]/g,"")}`} target="_blank" rel="noreferrer">💬</a></td></tr>
+                  <tr key={r.id}>
+                    <td style={{color:"var(--ink3)"}}>{regs.length-i}</td>
+                    <td style={{fontWeight:700}}>{r.name}</td>
+                    <td style={{fontSize:12}}>{r.gender||"—"}</td>
+                    <td>{r.phone}</td>
+                    <td style={{color:"var(--ink3)",fontSize:12}}>{r.email}</td>
+                    <td style={{maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",fontSize:12}}>{r.eventTitle}</td>
+                    <td style={{fontFamily:"monospace",color:"var(--sun)",fontSize:11}}>{r.ticketId}</td>
+                    <td style={{fontWeight:700}}>
+                      {r.price==="0"||r.price===0
+                        ? <span style={{color:"var(--grass)"}}>FREE</span>
+                        : <span style={{color:"var(--sun)"}}>₹{r.price}</span>}
+                    </td>
+                    <td>
+                      {r.attended
+                        ? <span className="pill pill-approved">✅ Yes</span>
+                        : <span className="pill pill-pending">⏳ No</span>}
+                    </td>
+                    <td style={{color:"var(--ink3)",fontSize:12}}>{r.date}</td>
+                    <td><a className="contact-btn" href={`https://wa.me/91${r.phone?.replace(/[\s\-+]/g,"")}`} target="_blank" rel="noreferrer">💬</a></td>
+                  </tr>
                 ))}</tbody>
               </table></div>
             )}
@@ -1712,20 +1862,31 @@ function AdminPanel({ onClose }) {
         {/* HOST REQUESTS */}
         {!loading && tab==="hosts" && (
           <div className="adm-card">
-            <div className="adm-card-h">Host / Chapter Requests <button className="btn btn-sm btn-dark" onClick={()=>exportCSV(hosts,"host_requests")}>📥 Export</button></div>
+            <div className="adm-card-h">Host Requests <button className="btn btn-sm btn-dark" onClick={()=>exportCSV(hosts,"host_requests")}>📥 Export</button></div>
             {hosts.length===0 ? <p style={{color:"var(--ink3)"}}>No host requests yet.</p> : (
               <table className="adm-tbl">
                 <thead><tr><th>#</th><th>Name</th><th>City</th><th>Email</th><th>Phone</th><th>About</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>{hosts.map((h,i)=>(
-                  <tr key={h.id}><td style={{color:"var(--ink3)"}}>{i+1}</td><td style={{fontWeight:700}}>{h.name}</td><td>{h.city}</td><td style={{color:"var(--ink3)",fontSize:12}}>{h.email}</td><td>{h.phone}</td><td style={{color:"var(--ink3)",fontSize:12,maxWidth:140}}>{h.about||"—"}</td><td style={{color:"var(--ink3)",fontSize:12}}>{h.date}</td>
+                  <tr key={h.id}>
+                    <td style={{color:"var(--ink3)"}}>{i+1}</td>
+                    <td style={{fontWeight:700}}>{h.name}</td>
+                    <td>{h.city}</td>
+                    <td style={{color:"var(--ink3)",fontSize:12}}>{h.email}</td>
+                    <td>{h.phone}</td>
+                    <td style={{color:"var(--ink3)",fontSize:12,maxWidth:140}}>{h.about||"—"}</td>
+                    <td style={{color:"var(--ink3)",fontSize:12}}>{h.date}</td>
                     <td><span className={`pill ${h.status==="approved"?"pill-approved":h.status==="rejected"?"pill-rejected":"pill-pending"}`}>{h.status||"pending"}</span></td>
-                    <td>{h.status==="pending"&&<div className="act-row"><button className="btn btn-success-soft btn-sm" onClick={()=>updStatus("host_requests",h.id,"approved")}>✓</button><button className="btn btn-danger-soft btn-sm" onClick={()=>updStatus("host_requests",h.id,"rejected")}>✕</button><a className="contact-btn" href={`https://wa.me/91${h.phone?.replace(/[\s\-+]/g,"")}`} target="_blank" rel="noreferrer">💬</a></div>}</td></tr>
+                    <td>{h.status==="pending"&&<div className="act-row">
+                      <button className="btn btn-success-soft btn-sm" onClick={()=>updStatus("host_requests",h.id,"approved")}>✓</button>
+                      <button className="btn btn-danger-soft btn-sm" onClick={()=>updStatus("host_requests",h.id,"rejected")}>✕</button>
+                      <a className="contact-btn" href={`https://wa.me/91${h.phone?.replace(/[\s\-+]/g,"")}`} target="_blank" rel="noreferrer">💬</a>
+                    </div>}</td>
+                  </tr>
                 ))}</tbody>
               </table>
             )}
           </div>
         )}
-
         {/* CHAPTER LEADS */}
         {!loading && tab==="chapters" && (
           <div className="adm-card">
