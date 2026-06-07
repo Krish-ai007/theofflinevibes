@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>Volunteer Check-In · The Offline Vibes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
+
+  <!-- Firebase v8 compat (same version as your main app) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+<style>
+/* ── RESET ── */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{font-size:16px;scroll-behavior:smooth;}
+body{
+  background:#0A0806;
+  color:#fff;
+  font-family:'Instrument Sans',sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+  line-height:1.6;
+}
+
+/* ── TOKENS ── */
+:root{
+  --sun:#FF7043;
+  --sun-glow:rgba(255,112,67,.22);
+  --sun-dim:rgba(255,112,67,.12);
+  --grass:#43A047;
+  --grass-dim:rgba(67,160,71,.12);
+  --grass-border:rgba(67,160,71,.28);
+  --amber:#FFB300;
+  --amber-dim:rgba(255,179,0,.1);
+  --amber-border:rgba(255,179,0,.28);
+  --rose:#EF4444;
+  --rose-dim:rgba(239,68,68,.1);
+  --rose-border:rgba(239,68,68,.28);
+  --sky:#29B6D4;
+  --ink:#0A0806;
+  --card:#161210;
+  --card2:#1E1A17;
+  --border:rgba(255,255,255,.07);
+  --border2:rgba(255,255,255,.04);
+  --muted:rgba(255,255,255,.38);
+  --muted2:rgba(255,255,255,.18);
+  --r:14px;
+  --r-lg:20px;
+  --r-xl:26px;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:var(--sun);border-radius:4px;}
+
+/* ── GRID BACKGROUND ── */
+.bg-grid{
+  position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(rgba(255,112,67,.05) 1px,transparent 1px);
+  background-size:32px 32px;
+}
+.bg-glow{
+  position:fixed;width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,112,67,.07) 0%,transparent 65%);
+  top:-200px;left:50%;transform:translateX(-50%);pointer-events:none;z-index:0;
+}
+
+/* ── LAYOUT ── */
+.app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── TOP BAR ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 28px;
+  border-bottom:1px solid var(--border);
+  background:rgba(10,8,6,.85);
+  backdrop-filter:blur(20px);
+  position:sticky;top:0;z-index:100;
+}
+.topbar-brand{
+  display:flex;align-items:center;gap:10px;
+  font-family:'Bricolage Grotesque',sans-serif;
+  font-size:16px;font-weight:800;color:#fff;letter-spacing:-.3px;
+}
+.live-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--grass);
+  animation:pulse 2.2s ease-in-out infinite;flex-shrink:0;
+}
+@keyframes pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(67,160,71,.5);}
+  60%{box-shadow:0 0 0 8px rgba(67,160,71,0);}
+}
+.topbar-badge{
+  font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  padding:4px 12px;border-radius:100px;
+  background:rgba(255,112,67,.12);border:1px solid rgba(255,112,67,.25);color:var(--sun);
+}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.topbar-event-name{
+  font-size:12px;color:var(--muted);font-weight:500;
+  max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.refresh-btn{
+  background:var(--card2);border:1px solid var(--border);color:var(--muted);
+  padding:7px 14px;border-radius:100px;font-family:'Instrument Sans',sans-serif;
+  font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;gap:6px;
+}
+.refresh-btn:hover{color:#fff;border-color:var(--border);background:#252015;}
+
+/* ── MAIN GRID ── */
+.main{
+  flex:1;display:grid;
+  grid-template-columns:420px 1fr;
+  gap:0;
+  min-height:calc(100vh - 61px);
+}
+
+/* ── LEFT PANEL (scan + result) ── */
+.left-panel{
+  border-right:1px solid var(--border);
+  padding:28px 24px;
+  display:flex;flex-direction:column;gap:20px;
+  background:rgba(10,8,6,.5);
+}
+
+/* ── SCAN INPUT ── */
+.scan-section{}
+.scan-label{
+  font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px;
+}
+.scan-label::before{content:'';width:16px;height:2px;background:var(--sun);border-radius:2px;}
+.scan-input-wrap{position:relative;}
+.scan-input{
+  width:100%;padding:16px 52px 16px 18px;
+  background:var(--card2);
+  border:1.5px solid var(--border);
+  border-radius:var(--r-lg);
+  font-family:'Bricolage Grotesque',sans-serif;
+  font-size:18px;font-weight:700;color:#fff;
+  letter-spacing:2px;text-transform:uppercase;
+  outline:none;transition:all .22s;
+  -webkit-appearance:none;
+}
+.scan-input:focus{
+  border-color:var(--sun);
+  background:#1a1208;
+  box-shadow:0 0 0 4px var(--sun-dim);
+}
+.scan-input::placeholder{color:var(--muted2);font-size:14px;letter-spacing:.5px;text-transform:none;font-weight:500;}
+.scan-go-btn{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  background:var(--sun);border:none;color:#fff;
+  width:36px;height:36px;border-radius:10px;
+  font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+}
+.scan-go-btn:hover{background:#F4511E;transform:translateY(-50%) scale(1.05);}
+.scan-hint{
+  font-size:11px;color:var(--muted2);margin-top:8px;
+  display:flex;align-items:center;gap:6px;
+}
+
+/* ── AUTO-DETECT FROM URL ── */
+.url-tid-banner{
+  background:var(--sun-dim);border:1px solid rgba(255,112,67,.2);
+  border-radius:var(--r);padding:12px 14px;
+  display:flex;align-items:center;gap:10px;
+  font-size:12px;color:rgba(255,112,67,.9);font-weight:600;
+}
+
+/* ── RESULT CARD ── */
+.result-card{
+  border-radius:var(--r-xl);overflow:hidden;
+  border:1.5px solid var(--border);
+  animation:slideIn .3s cubic-bezier(.34,1.4,.64,1);
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+.result-status-bar{
+  padding:20px 22px;
+  display:flex;align-items:center;gap:14px;
+}
+.result-status-bar.ok{background:var(--grass-dim);border-bottom:1px solid var(--grass-border);}
+.result-status-bar.warn{background:var(--amber-dim);border-bottom:1px solid var(--amber-border);}
+.result-status-bar.err{background:var(--rose-dim);border-bottom:1px solid var(--rose-border);}
+.result-status-bar.fresh{background:var(--sun-dim);border-bottom:1px solid rgba(255,112,67,.25);}
+
+.result-icon{font-size:36px;line-height:1;flex-shrink:0;}
+.result-title{
+  font-family:'Bricolage Grotesque',sans-serif;
+  font-size:20px;font-weight:800;color:#fff;letter-spacing:-.3px;
+}
+.result-sub{font-size:12px;margin-top:3px;font-weight:600;}
+.result-sub.ok{color:#66BB6A;}
+.result-sub.warn{color:#FFB300;}
+.result-sub.err{color:#F87171;}
+.result-sub.fresh{color:var(--sun);}
+
+.result-body{
+  background:var(--card);padding:20px 22px;
+  display:flex;flex-direction:column;gap:0;
+}
+.result-row{
+  display:flex;justify-content:space-between;align-items:baseline;
+  gap:12px;padding:10px 0;
+  border-bottom:1px solid var(--border2);
+  font-size:13px;
+}
+.result-row:last-child{border-bottom:none;padding-bottom:0;}
+.result-k{color:var(--muted);font-weight:600;letter-spacing:.3px;flex-shrink:0;}
+.result-v{font-weight:700;color:#fff;text-align:right;word-break:break-word;}
+.result-v.sun{color:var(--sun);}
+.result-v.grass{color:#66BB6A;}
+.result-v.amber{color:#FFB300;}
+.ticket-id-display{
+  font-family:'Bricolage Grotesque',sans-serif;
+  font-size:16px;color:var(--sun);letter-spacing:2px;
+}
+
+.mark-btn{
+  width:100%;padding:16px;
+  background:var(--grass);color:#fff;border:none;
+  border-radius:var(--r);
+  font-family:'Instrument Sans',sans-serif;
+  font-size:16px;font-weight:700;cursor:pointer;
+  transition:all .22s;margin-top:16px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.mark-btn:hover:not(:disabled){background:#388E3C;transform:translateY(-2px);box-shadow:0 8px 24px rgba(67,160,71,.3);}
+.mark-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+
+.already-btn{
+  width:100%;padding:14px;
+  background:transparent;color:var(--muted);border:1.5px solid var(--border);
+  border-radius:var(--r);
+  font-family:'Instrument Sans',sans-serif;
+  font-size:13px;font-weight:600;cursor:default;
+  margin-top:12px;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+
+/* ── EMPTY / IDLE STATE ── */
+.idle-state{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;padding:32px;gap:12px;
+  opacity:.5;
+}
+.idle-icon{font-size:52px;}
+.idle-title{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:700;color:#fff;}
+.idle-sub{font-size:13px;color:var(--muted);}
+
+/* ── STATS ROW ── */
+.stats-row{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+}
+.stat-pill{
+  background:var(--card2);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px 12px;text-align:center;
+}
+.stat-n{
+  font-family:'Bricolage Grotesque',sans-serif;
+  font-size:28px;font-weight:800;line-height:1;margin-bottom:4px;
+}
+.stat-n.sun{color:var(--sun);}
+.stat-n.grass{color:var(--grass);}
+.stat-n.sky{color:var(--sky);}
+.stat-l{font-size:9px;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+
+/* ── RIGHT PANEL (attended list) ── */
+.right-panel{
+  padding:28px;
+  overflow-y:auto;
+  background:#0D0A08;
+}
+
+.list-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:20px;flex-wrap:wrap;gap:12px;
+}
+.list-title{
+  font-family:'Bricolage Grotesque',sans-serif;
+  font-size:22px;font-weight:800;color:#fff;letter-spacing:-.4px;
+}
+.list-count{
+  font-size:12px;color:var(--muted);font-weight:600;
+  background:var(--card2);border:1px solid var(--border);
+  padding:4px 12px;border-radius:100px;
+}
+
+/* ── FILTER BAR ── */
+.filter-bar{
+  display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;
+  align-items:center;
+}
+.filter-inp{
+  flex:1;min-width:180px;
+  padding:10px 16px;
+  background:var(--card2);border:1.5px solid var(--border);
+  border-radius:100px;
+  font-family:'Instrument Sans',sans-serif;font-size:13px;color:#fff;
+  outline:none;transition:all .2s;
+}
+.filter-inp:focus{border-color:var(--sun);box-shadow:0 0 0 3px var(--sun-dim);}
+.filter-inp::placeholder{color:var(--muted2);}
+.filter-pill{
+  padding:8px 14px;border-radius:100px;
+  font-size:11px;font-weight:700;letter-spacing:.5px;cursor:pointer;
+  border:1.5px solid var(--border);background:var(--card2);color:var(--muted);
+  transition:all .2s;white-space:nowrap;
+}
+.filter-pill.active{background:var(--sun);border-color:var(--sun);color:#fff;}
+.filter-pill:hover:not(.active){border-color:rgba(255,255,255,.15);color:#fff;}
+
+/* ── ATTENDEE TABLE ── */
+.att-table-wrap{overflow-x:auto;}
+.att-table{
+  width:100%;border-collapse:collapse;
+}
+.att-table th{
+  text-align:left;padding:10px 14px;
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);border-bottom:1.5px solid var(--border);font-weight:700;
+  white-space:nowrap;
+}
+.att-table td{
+  padding:13px 14px;font-size:13px;
+  border-bottom:1px solid var(--border2);
+  vertical-align:middle;color:#fff;
+}
+.att-table tr:last-child td{border-bottom:none;}
+.att-table tr:hover td{background:rgba(255,112,67,.03);}
+.att-table tr.new-entry td{
+  animation:rowFlash .8s ease;
+}
+@keyframes rowFlash{
+  0%,100%{background:transparent;}
+  30%{background:rgba(67,160,71,.12);}
+}
+
+.att-num{color:var(--muted);font-size:11px;font-weight:700;}
+.att-name{font-weight:700;font-size:14px;}
+.att-tid{
+  font-family:monospace;color:var(--sun);font-size:11px;
+  letter-spacing:.5px;background:var(--sun-dim);
+  padding:2px 8px;border-radius:6px;display:inline-block;
+}
+.att-gender{
+  font-size:10px;font-weight:700;letter-spacing:.5px;
+  padding:3px 8px;border-radius:100px;display:inline-block;
+}
+.att-gender.female{background:rgba(233,30,140,.1);color:#E91E8C;border:1px solid rgba(233,30,140,.2);}
+.att-gender.male{background:rgba(41,182,212,.1);color:var(--sky);border:1px solid rgba(41,182,212,.2);}
+.att-gender.other{background:var(--card2);color:var(--muted);border:1px solid var(--border);}
+.att-time{font-size:11px;color:var(--muted);white-space:nowrap;}
+.att-status{
+  font-size:10px;font-weight:700;letter-spacing:.5px;
+  padding:3px 10px;border-radius:100px;display:inline-flex;align-items:center;gap:4px;
+}
+.att-status.attended{
+  background:var(--grass-dim);color:#66BB6A;
+  border:1px solid var(--grass-border);
+}
+.att-status.registered{
+  background:rgba(255,179,0,.1);color:#FFB300;
+  border:1px solid rgba(255,179,0,.25);
+}
+.att-contact{
+  display:inline-flex;align-items:center;gap:4px;
+  background:rgba(67,160,71,.1);color:#66BB6A;
+  border:1px solid rgba(67,160,71,.2);
+  padding:4px 10px;border-radius:100px;
+  font-size:11px;font-weight:700;text-decoration:none;
+  transition:all .2s;
+}
+.att-contact:hover{background:rgba(67,160,71,.18);}
+
+/* ── EMPTY LIST ── */
+.empty-list{
+  text-align:center;padding:80px 40px;
+  border:2px dashed var(--border);border-radius:var(--r-xl);
+  color:var(--muted);
+}
+.empty-list-icon{font-size:48px;margin-bottom:12px;}
+.empty-list-title{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:700;color:rgba(255,255,255,.4);margin-bottom:6px;}
+
+/* ── LOADING ── */
+.loader{
+  display:flex;align-items:center;justify-content:center;
+  gap:8px;padding:40px;color:var(--muted);font-size:14px;
+}
+.spinner{
+  width:18px;height:18px;border:2px solid var(--border);
+  border-top-color:var(--sun);border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;right:24px;
+  background:var(--grass);color:#fff;
+  padding:14px 22px;border-radius:14px;
+  font-family:'Instrument Sans',sans-serif;font-size:14px;font-weight:700;
+  box-shadow:0 8px 32px rgba(67,160,71,.35);
+  display:flex;align-items:center;gap:8px;
+  z-index:999;
+  animation:toastIn .35s cubic-bezier(.34,1.4,.64,1);
+}
+.toast.warn{background:var(--amber);box-shadow:0 8px 32px rgba(255,179,0,.35);}
+.toast.err{background:var(--rose);box-shadow:0 8px 32px rgba(239,68,68,.35);}
+@keyframes toastIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── LOGIN WALL ── */
+.login-wrap{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.login-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-xl);padding:48px 40px;
+  max-width:380px;width:100%;text-align:center;
+  box-shadow:0 24px 80px rgba(0,0,0,.5);
+  animation:slideIn .4s cubic-bezier(.34,1.4,.64,1);
+}
+.login-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:15px;font-weight:800;color:var(--sun);margin-bottom:24px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.login-icon{font-size:48px;margin-bottom:16px;}
+.login-h{font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:800;color:#fff;margin-bottom:6px;letter-spacing:-.4px;}
+.login-sub{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.6;}
+.login-inp{
+  width:100%;padding:13px 16px;margin-bottom:12px;
+  background:#1a1512;border:1.5px solid var(--border);border-radius:var(--r);
+  font-family:'Instrument Sans',sans-serif;font-size:15px;color:#fff;outline:none;
+  transition:all .2s;-webkit-appearance:none;
+}
+.login-inp:focus{border-color:var(--sun);box-shadow:0 0 0 4px var(--sun-dim);}
+.login-inp::placeholder{color:var(--muted2);}
+.login-btn{
+  width:100%;padding:14px;background:var(--sun);color:#fff;border:none;
+  border-radius:100px;font-family:'Instrument Sans',sans-serif;font-size:15px;
+  font-weight:700;cursor:pointer;transition:all .2s;margin-top:4px;
+}
+.login-btn:hover:not(:disabled){background:#F4511E;transform:translateY(-2px);box-shadow:0 8px 24px var(--sun-glow);}
+.login-btn:disabled{opacity:.5;cursor:not-allowed;}
+.login-err{font-size:12px;color:#F87171;margin-top:10px;font-weight:600;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .main{grid-template-columns:1fr;grid-template-rows:auto 1fr;}
+  .left-panel{border-right:none;border-bottom:1px solid var(--border);padding:20px 18px;}
+  .right-panel{padding:20px 18px;}
+  .stats-row{grid-template-columns:repeat(3,1fr);}
+}
+@media(max-width:600px){
+  .topbar{padding:12px 16px;}
+  .topbar-event-name{display:none;}
+  .att-table th:nth-child(5),
+  .att-table td:nth-child(5),
+  .att-table th:nth-child(6),
+  .att-table td:nth-child(6){display:none;}
+  .login-card{padding:36px 24px;}
+}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<div id="root" class="app">
+  <div class="loader" style="min-height:100vh;align-items:center;justify-content:center;">
+    <div class="spinner"></div> Loading…
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  CONFIGURE YOUR FIREBASE HERE
+//  Copy exact same values from your main app's FB_CONFIG
+// ══════════════════════════════════════════════════════════
+const FB_CONFIG = {
+  apiKey: "AIzaSyB34f-TnV8ueA2XONEC6nXXhhPmIOKZ5mU",
+  authDomain: "theofflinevibes-ff9b6.firebaseapp.com",
+  projectId: "theofflinevibes-ff9b6",
+  storageBucket: "theofflinevibes-ff9b6.firebasestorage.app",
+  messagingSenderId: "385394122406",
+  appId: "1:385394122406:web:8abf83d6a574fe77575e67"
+};
+
+// ── Init Firebase ─────────────────────────────────────────
+firebase.initializeApp(FB_CONFIG);
+const DB   = firebase.firestore();
+const AUTH = firebase.auth();
+
+// ── Helpers ───────────────────────────────────────────────
+const nowStamp = () => {
+  const d = new Date();
+  return d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})
+       + " " + d.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
+};
+
+let _toast = null;
+function showToast(msg, type="ok") {
+  if (_toast) _toast.remove();
+  _toast = document.createElement("div");
+  _toast.className = "toast" + (type==="warn"?" warn":type==="err"?" err":"");
+  _toast.innerHTML = (type==="ok"?"✅ ":type==="warn"?"⚠️ ":"❌ ") + msg;
+  document.body.appendChild(_toast);
+  setTimeout(()=>{ if(_toast){_toast.style.opacity="0";_toast.style.transition="opacity .4s";} setTimeout(()=>_toast?.remove(),400); }, 2800);
+}
+
+// ── App state ─────────────────────────────────────────────
+let STATE = {
+  authed: false,
+  user: null,
+  registrations: [],
+  loading: true,
+  scanning: false,
+  result: null,       // { record, status: "valid"|"attended"|"notfound" }
+  filter: "all",      // "all" | "attended" | "registered"
+  search: "",
+  lastMarked: null,   // id of last marked (for flash animation)
+};
+
+// ── Render root ───────────────────────────────────────────
+const root = document.getElementById("root");
+function render() {
+  if (!STATE.authed) { renderLogin(); return; }
+  renderApp();
+}
+
+// ══════════════════════════════════════════════════════════
+//  LOGIN PAGE
+// ══════════════════════════════════════════════════════════
+function renderLogin() {
+  root.innerHTML = `
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+    <div class="login-wrap">
+      <div class="login-card">
+        <div class="login-logo"><div class="live-dot"></div> The Offline Vibes</div>
+        <div class="login-icon">⚡</div>
+        <h2 class="login-h">Volunteer Access</h2>
+        <p class="login-sub">Sign in with your admin credentials to access the check-in dashboard.</p>
+        <input class="login-inp" id="l-email" type="email" placeholder="Volunteer email" autocomplete="email" autofocus/>
+        <input class="login-inp" id="l-pw" type="password" placeholder="Password" autocomplete="current-password"/>
+        <div id="l-err" class="login-err" style="display:none"></div>
+        <button class="login-btn" id="l-btn" onclick="doLogin()">Sign In →</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("l-pw").addEventListener("keydown", e => e.key==="Enter" && doLogin());
+}
+
+async function doLogin() {
+  const email = document.getElementById("l-email")?.value?.trim();
+  const pw    = document.getElementById("l-pw")?.value;
+  const btn   = document.getElementById("l-btn");
+  const err   = document.getElementById("l-err");
+  if (!email || !pw) { err.textContent="Enter email and password."; err.style.display="block"; return; }
+  btn.disabled = true; btn.textContent = "Signing in…"; err.style.display="none";
+  try {
+    await AUTH.signInWithEmailAndPassword(email, pw);
+  } catch(e) {
+    btn.disabled=false; btn.textContent="Sign In →";
+    err.textContent="Wrong email or password."; err.style.display="block";
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  LOAD DATA
+// ══════════════════════════════════════════════════════════
+async function loadRegistrations() {
+  try {
+    const snap = await DB.collection("registrations").orderBy("createdAt","desc").get();
+    STATE.registrations = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) {
+    console.error("Load error:", e);
+  }
+  STATE.loading = false;
+  render();
+}
+
+// Real-time listener
+let _unsub = null;
+function startLiveListener() {
+  if (_unsub) _unsub();
+  _unsub = DB.collection("registrations")
+    .orderBy("createdAt","desc")
+    .onSnapshot(snap => {
+      STATE.registrations = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderAttendedList();
+      renderStats();
+    }, err => console.error("Snapshot err:", err));
+}
+
+// ══════════════════════════════════════════════════════════
+//  SCAN LOGIC
+// ══════════════════════════════════════════════════════════
+async function doScan(rawInput) {
+  if (STATE.scanning) return;
+  const tid = rawInput.trim().toUpperCase();
+  if (!tid) return;
+
+  STATE.scanning = true;
+  renderScanResult("loading");
+
+  // Parse QR payload — could be JSON or plain ticket ID
+  let lookupTid = tid;
+  try {
+    const parsed = JSON.parse(tid);
+    if (parsed.tid) lookupTid = parsed.tid;
+  } catch { /* plain ID string */ }
+
+  const record = STATE.registrations.find(r =>
+    r.ticketId?.toUpperCase() === lookupTid.toUpperCase()
+  );
+
+  if (!record) {
+    STATE.result = { record: null, tid: lookupTid, status: "notfound" };
+  } else if (record.attended) {
+    STATE.result = { record, status: "attended" };
+  } else {
+    STATE.result = { record, status: "valid" };
+  }
+
+  STATE.scanning = false;
+  renderScanResult();
+}
+
+async function markAttended(id) {
+  const btn = document.getElementById("mark-btn");
+  if (btn) { btn.disabled = true; btn.innerHTML = "⏳ Marking…"; }
+
+  const stamp = nowStamp();
+  try {
+    await DB.collection("registrations").doc(id).update({
+      attended: true,
+      attendedAt: stamp,
+    });
+    // Update local state
+    const idx = STATE.registrations.findIndex(r => r.id === id);
+    if (idx >= 0) {
+      STATE.registrations[idx].attended = true;
+      STATE.registrations[idx].attendedAt = stamp;
+    }
+    if (STATE.result?.record?.id === id) {
+      STATE.result.record.attended = true;
+      STATE.result.record.attendedAt = stamp;
+      STATE.result.status = "marked";
+    }
+    STATE.lastMarked = id;
+    showToast(`${STATE.result?.record?.name || "Attendee"} checked in!`);
+    renderScanResult();
+    renderAttendedList();
+    renderStats();
+  } catch(e) {
+    showToast("Failed to mark. Check connection.", "err");
+    if (btn) { btn.disabled = false; btn.innerHTML = "✅ Mark as Attended"; }
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  RENDER APP SHELL
+// ══════════════════════════════════════════════════════════
+function renderApp() {
+  // Read URL param
+  const urlTid = new URLSearchParams(window.location.search).get("tid") || "";
+
+  // Stats
+  const total    = STATE.registrations.length;
+  const attended = STATE.registrations.filter(r => r.attended).length;
+  const pending  = total - attended;
+
+  root.innerHTML = `
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <div class="topbar-brand">
+        <div class="live-dot"></div>
+        The Offline Vibes
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-badge">🎫 Volunteer Check-In</span>
+        <button class="refresh-btn" onclick="loadRegistrations()">↻ Refresh</button>
+        <button class="refresh-btn" onclick="doLogout()" style="color:#F87171;border-color:rgba(248,113,113,.2);">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- MAIN GRID -->
+    <div class="main">
+      <!-- ── LEFT: SCAN + RESULT ── -->
+      <div class="left-panel">
+
+        <!-- Stats -->
+        <div class="stats-row" id="stats-row">
+          <div class="stat-pill">
+            <div class="stat-n sun" id="stat-total">${total}</div>
+            <div class="stat-l">Registered</div>
+          </div>
+          <div class="stat-pill">
+            <div class="stat-n grass" id="stat-att">${attended}</div>
+            <div class="stat-l">Attended</div>
+          </div>
+          <div class="stat-pill">
+            <div class="stat-n sky" id="stat-pend">${pending}</div>
+            <div class="stat-l">Pending</div>
+          </div>
+        </div>
+
+        <!-- Scan Input -->
+        <div class="scan-section">
+          <div class="scan-label">Scan or Enter Ticket ID</div>
+          ${urlTid ? `
+          <div class="url-tid-banner">
+            📲 QR detected: <b style="letter-spacing:1px;font-family:monospace">${urlTid}</b>
+          </div>` : ""}
+          <div class="scan-input-wrap" style="margin-top:${urlTid?'10px':'0'}">
+            <input
+              class="scan-input"
+              id="scan-inp"
+              type="text"
+              placeholder="TOV-XXXXXXXX  or scan QR"
+              autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
+              value="${urlTid}"
+            />
+            <button class="scan-go-btn" onclick="triggerScan()">→</button>
+          </div>
+          <div class="scan-hint">⌨️ Type ticket ID and press Enter · or let QR scanner auto-fill</div>
+        </div>
+
+        <!-- Result area -->
+        <div id="result-area">
+          ${urlTid
+            ? `<div class="loader"><div class="spinner"></div> Looking up ticket…</div>`
+            : `<div class="idle-state">
+                <div class="idle-icon">📷</div>
+                <div class="idle-title">Ready to scan</div>
+                <div class="idle-sub">Enter a ticket ID above or use a QR scanner to check in attendees</div>
+               </div>`
+          }
+        </div>
+      </div>
+
+      <!-- ── RIGHT: ATTENDED LIST ── -->
+      <div class="right-panel">
+        <div class="list-header">
+          <div class="list-title">Attendee Entries</div>
+          <span class="list-count" id="list-count">${total} total</span>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="filter-bar">
+          <input class="filter-inp" id="search-inp" placeholder="🔍  Search name, ticket ID, phone…"
+            oninput="updateSearch(this.value)"/>
+          <button class="filter-pill ${STATE.filter==='all'?'active':''}"
+            onclick="setFilter('all')">All</button>
+          <button class="filter-pill ${STATE.filter==='attended'?'active':''}"
+            onclick="setFilter('attended')">✅ Attended</button>
+          <button class="filter-pill ${STATE.filter==='registered'?'active':''}"
+            onclick="setFilter('registered')">⏳ Pending</button>
+        </div>
+
+        <!-- Table -->
+        <div id="att-list">
+          ${renderAttendedListHTML()}
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Keyboard listener on scan input
+  const inp = document.getElementById("scan-inp");
+  if (inp) {
+    inp.addEventListener("keydown", e => {
+      if (e.key === "Enter") triggerScan();
+    });
+    // Auto-focus for barcode scanners
+    inp.focus();
+  }
+
+  // Auto-scan if URL had tid
+  if (urlTid) {
+    setTimeout(() => doScan(urlTid), 400);
+  }
+
+  // Start live listener
+  startLiveListener();
+}
+
+// ── Scan trigger ─────────────────────────────────────────
+function triggerScan() {
+  const val = document.getElementById("scan-inp")?.value || "";
+  doScan(val);
+}
+
+// ── Render scan result ────────────────────────────────────
+function renderScanResult(mode) {
+  const area = document.getElementById("result-area");
+  if (!area) return;
+
+  if (mode === "loading") {
+    area.innerHTML = `<div class="loader"><div class="spinner"></div> Looking up…</div>`;
+    return;
+  }
+
+  const { result } = STATE;
+  if (!result) return;
+
+  if (result.status === "notfound") {
+    area.innerHTML = `
+      <div class="result-card">
+        <div class="result-status-bar err">
+          <div class="result-icon">❌</div>
+          <div>
+            <div class="result-title">Not Found</div>
+            <div class="result-sub err">Ticket ID does not exist</div>
+          </div>
+        </div>
+        <div class="result-body">
+          <div class="result-row">
+            <span class="result-k">Scanned ID</span>
+            <span class="result-v sun" style="font-family:monospace">${result.tid}</span>
+          </div>
+          <div class="result-row">
+            <span class="result-k">Action</span>
+            <span class="result-v" style="color:#F87171">Contact registrant — ticket may be invalid</span>
+          </div>
+        </div>
+      </div>`;
+    showToast("Ticket not found", "err");
+    return;
+  }
+
+  const r = result.record;
+  const isMarked   = result.status === "marked";
+  const isAttended = result.status === "attended";
+  const isValid    = result.status === "valid";
+
+  const statusClass = isMarked ? "ok" : isAttended ? "warn" : "fresh";
+  const icon   = isMarked ? "✅" : isAttended ? "⚠️" : "🎫";
+  const title  = isMarked ? "Checked In!" : isAttended ? "Already Attended" : "Valid Ticket";
+  const subTxt = isMarked
+    ? "Marked attended just now"
+    : isAttended
+    ? `Checked in at ${r.attendedAt || "—"}`
+    : "Ready to check in";
+  const subCls = isMarked ? "ok" : isAttended ? "warn" : "fresh";
+
+  const priceTxt = (!r.price || r.price==="0")
+    ? '<span class="result-v grass">FREE</span>'
+    : `<span class="result-v sun">₹${r.price}</span>`;
+
+  const genderCls = (r.gender||"").toLowerCase()==="female"?"female"
+                  : (r.gender||"").toLowerCase()==="male"?"male":"other";
+
+  area.innerHTML = `
+    <div class="result-card">
+      <div class="result-status-bar ${statusClass}">
+        <div class="result-icon">${icon}</div>
+        <div>
+          <div class="result-title">${r.name}</div>
+          <div class="result-sub ${subCls}">${subTxt}</div>
+        </div>
+      </div>
+      <div class="result-body">
+        <div class="result-row">
+          <span class="result-k">Ticket ID</span>
+          <span class="ticket-id-display">${r.ticketId}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-k">Gender</span>
+          <span class="att-gender ${genderCls}">${r.gender||"—"}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-k">WhatsApp</span>
+          <span class="result-v">${r.phone||"—"}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-k">Email</span>
+          <span class="result-v" style="font-size:12px">${r.email||"—"}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-k">Event</span>
+          <span class="result-v" style="font-size:12px">${r.eventTitle||"—"}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-k">Date</span>
+          <span class="result-v">${r.eventDate||"—"}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-k">Venue</span>
+          <span class="result-v" style="font-size:12px">${r.eventVenue||"—"}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-k">Entry Fee</span>
+          ${priceTxt}
+        </div>
+        <div class="result-row">
+          <span class="result-k">Registered on</span>
+          <span class="result-v" style="font-size:12px;color:var(--muted)">${r.date} ${r.time}</span>
+        </div>
+      </div>
+      ${isValid
+        ? `<div style="padding:0 20px 20px">
+             <button class="mark-btn" id="mark-btn" onclick="markAttended('${r.id}')">
+               ✅ Mark as Attended
+             </button>
+           </div>`
+        : isAttended
+        ? `<div style="padding:0 20px 20px">
+             <div class="already-btn">⚠️ Already checked in at ${r.attendedAt||"—"}</div>
+           </div>`
+        : `<div style="padding:0 20px 20px">
+             <div class="already-btn" style="border-color:var(--grass-border);color:#66BB6A">
+               ✅ Successfully checked in
+             </div>
+           </div>`
+      }
+    </div>`;
+
+  if (!isMarked && !isAttended && !isValid) return;
+  if (isAttended) showToast(`${r.name} already checked in`, "warn");
+}
+
+// ── Render attended list HTML ─────────────────────────────
+function renderAttendedListHTML() {
+  let rows = [...STATE.registrations];
+
+  // Filter
+  if (STATE.filter === "attended") rows = rows.filter(r => r.attended);
+  if (STATE.filter === "registered") rows = rows.filter(r => !r.attended);
+
+  // Search
+  if (STATE.search.trim()) {
+    const q = STATE.search.toLowerCase();
+    rows = rows.filter(r =>
+      (r.name||"").toLowerCase().includes(q) ||
+      (r.ticketId||"").toLowerCase().includes(q) ||
+      (r.phone||"").includes(q) ||
+      (r.email||"").toLowerCase().includes(q)
+    );
+  }
+
+  if (!rows.length) {
+    return `<div class="empty-list">
+      <div class="empty-list-icon">${STATE.filter==="attended"?"🎉":"⏳"}</div>
+      <div class="empty-list-title">${STATE.filter==="attended"?"No check-ins yet":STATE.filter==="registered"?"Everyone's checked in!":"No entries found"}</div>
+    </div>`;
+  }
+
+  const total    = STATE.registrations.length;
+  const attended = STATE.registrations.filter(r => r.attended).length;
+
+  return `
+    <div class="att-table-wrap">
+      <table class="att-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Ticket ID</th>
+            <th>Gender</th>
+            <th>Phone</th>
+            <th>Registered</th>
+            <th>Status</th>
+            <th>Checked In At</th>
+            <th>Contact</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r, i) => {
+            const genderCls = (r.gender||"").toLowerCase()==="female"?"female"
+                            : (r.gender||"").toLowerCase()==="male"?"male":"other";
+            const isNew = r.id === STATE.lastMarked;
+            return `
+              <tr class="${isNew?"new-entry":""}">
+                <td class="att-num">${rows.length - i}</td>
+                <td class="att-name">${r.name||"—"}</td>
+                <td><span class="att-tid">${r.ticketId||"—"}</span></td>
+                <td><span class="att-gender ${genderCls}">${r.gender||"—"}</span></td>
+                <td style="font-size:12px;color:var(--muted)">${r.phone||"—"}</td>
+                <td class="att-time">${r.date||"—"}</td>
+                <td>
+                  <span class="att-status ${r.attended?"attended":"registered"}">
+                    ${r.attended?"✅ Attended":"⏳ Pending"}
+                  </span>
+                </td>
+                <td class="att-time">${r.attended ? (r.attendedAt||"—") : "—"}</td>
+                <td>
+                  ${r.phone
+                    ? `<a class="att-contact" href="https://wa.me/91${r.phone.replace(/[\s\-+]/g,"")}" target="_blank" rel="noreferrer">💬</a>`
+                    : "—"
+                  }
+                </td>
+              </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderAttendedList() {
+  const el = document.getElementById("att-list");
+  if (el) el.innerHTML = renderAttendedListHTML();
+}
+
+function renderStats() {
+  const total    = STATE.registrations.length;
+  const attended = STATE.registrations.filter(r => r.attended).length;
+  const pending  = total - attended;
+  const t = document.getElementById("stat-total");
+  const a = document.getElementById("stat-att");
+  const p = document.getElementById("stat-pend");
+  const c = document.getElementById("list-count");
+  if (t) t.textContent = total;
+  if (a) a.textContent = attended;
+  if (p) p.textContent = pending;
+  if (c) c.textContent = total + " total";
+}
+
+// ── Filter / search ───────────────────────────────────────
+function setFilter(f) {
+  STATE.filter = f;
+  document.querySelectorAll(".filter-pill").forEach(el => el.classList.remove("active"));
+  event.target.classList.add("active");
+  renderAttendedList();
+}
+
+function updateSearch(val) {
+  STATE.search = val;
+  renderAttendedList();
+}
+
+// ── Logout ────────────────────────────────────────────────
+async function doLogout() {
+  if (_unsub) _unsub();
+  await AUTH.signOut();
+}
+
+// ══════════════════════════════════════════════════════════
+//  AUTH LISTENER — BOOT
+// ══════════════════════════════════════════════════════════
+AUTH.onAuthStateChanged(user => {
+  STATE.authed = !!user;
+  STATE.user   = user;
+  if (user) {
+    STATE.loading = true;
+    render();
+    loadRegistrations();
+  } else {
+    STATE.loading = false;
+    render();
+  }
+});
+</script>
+</body>
+</html>
