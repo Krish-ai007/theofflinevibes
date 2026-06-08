@@ -1454,10 +1454,24 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
     setNewEv({title:"",date:"",venue:"",price:"",spots:"",type:"",description:"",emoji:"🎉",color:"",timing:"",location:"",refreshments:"",activities:"",imageUrl:""});
     await load(); setSaving(false); setTimeout(()=>setSaveMsg(""),4000);
   };
-  const delEv = async id => {
-    if (!confirm("Delete this event?")) return;
-    await fbDelete("events",id); await load();
-  };
+  const delEv = async (id, title) => {
+  if (!confirm(`Delete "${title}"?\n\nThis will also permanently delete ALL registrations for this event.`)) return;
+  try {
+    await fbDelete("events", id);
+    const d = db();
+    if (d) {
+      const snap = await d.collection("registrations").where("eventId","==",id).get();
+      if (!snap.empty) {
+        const batch = d.batch();
+        snap.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+      }
+    }
+    await load();
+  } catch(e) {
+    alert("Error deleting: " + e.message);
+  }
+};
   const updStatus = async (col,id,status) => { await fbUpdate(col,id,{status}); await load(); };
   const addPhoto = async () => {
     if (!photoUrl.trim()) return alert("Enter a photo URL");
@@ -1812,8 +1826,7 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
                             }
                           </td>
                           <td>
-                            <button className="btn btn-danger-soft btn-sm"
-                              onClick={()=>delEv(ev.id)}>Delete</button>
+                            <button className="btn btn-danger-soft btn-sm" onClick={()=>delEv(ev.id, ev.title)}>Delete</button>
                           </td>
                         </tr>
                       ))}
