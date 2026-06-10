@@ -5,7 +5,7 @@ import {
   VolunteerScanner,
   REGISTRATION_STYLES,
   EVENT_EXTRA_FIELDS,
-} from "./EventRegistration";
+} from "./EventRegistrationSystem";
 
 // ─── FIREBASE CONFIG (already configured) ───────────────────
 const FB_CONFIG = {
@@ -2115,7 +2115,7 @@ export default function App() {
       <Hero onJoin={()=>setPopup(true)} nextEvent={nextEvent} registrationCount={nextEventRegs}/>
       <Marquee/>
       {/* Step 3 — EventsSection receives firebase helpers */}
-      <EventsSection events={events} fbAdd={fbAdd} fbGet={fbGet} fbUpdate={fbUpdate}/>
+      <EventsSection events={events} fbAdd={fbAdd} fbGet={fbGet} fbUpdate={fbUpdate} registrations={registrations}/>
       <Stats/>
       <Experiences/>
       <Chapters onHost={()=>setHost(true)}/>
