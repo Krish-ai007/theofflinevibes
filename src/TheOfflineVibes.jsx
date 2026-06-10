@@ -1111,7 +1111,7 @@ function EventsSection({ events, fbAdd, fbGet, fbUpdate, registrations }) {
   const GRADS = ["linear-gradient(135deg,#1a0a0a,#2a1212)","linear-gradient(135deg,#0a1a16,#0d2820)","linear-gradient(135deg,#0e0a1a,#181030)","linear-gradient(135deg,#1a1200,#2a1e00)"];
 
   // Count registrations per event
-  const regCount = (eventId) => registrations.filter(r => r.eventId === eventId).length;
+  const regCount = (eventId) => (registrations || []).filter(r => r.eventId === eventId).length;
 
   return (
     <section className="sec events-sec" id="events">
