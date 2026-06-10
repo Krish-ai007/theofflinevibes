@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-// At the top of TheOfflineVibes.jsx
-import { EventModal, ScanPage } from "./EventRegistration";
+// Step 1 — Updated import with all 4 named exports
+import {
+  EventModal,
+  VolunteerScanner,
+  REGISTRATION_STYLES,
+  EVENT_EXTRA_FIELDS,
+} from "./EventRegistrationSystem";
+
 // ─── FIREBASE CONFIG (already configured) ───────────────────
 const FB_CONFIG = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -12,7 +18,6 @@ const FB_CONFIG = {
 };
 
 // ─── ADMIN CREDENTIALS (change these!) ──────────────────────
-
 
 let _db = null;
 function db() {
@@ -217,7 +222,6 @@ body {
   display:flex; align-items:center;
   position:relative; overflow:hidden; padding-top:80px;
 }
-/* Hero background elements matching JSX class names */
 .hero-grid {
   position:absolute; inset:0;
   background-image:radial-gradient(rgba(28,25,23,.06) 1.2px,transparent 1.2px);
@@ -371,7 +375,6 @@ body {
 .btn-neutral:hover { background:#EDE8E3; }
 .btn-dark { background:var(--ink); color:#fff; border:1px solid rgba(28,25,23,.8); padding:8px 16px; font-size:12px; }
 .btn-dark:hover { background:#333; }
-.btn-neutral:hover { background:#EDE8E3; }
 .btn:disabled { opacity:.55; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
 
 /* ── MARQUEE ── */
@@ -901,9 +904,6 @@ function Popup({ onClose }) {
   );
 }
 
-// ─── EVENT REGISTER MODAL ────────────────────────────────────
-
-
 // ─── HOST MODAL ───────────────────────────────────────────────
 function HostModal({ onClose }) {
   const [f,setF]=useState({name:"",email:"",phone:"",city:"",about:""});
@@ -1001,7 +1001,6 @@ function Navbar({ onJoin }) {
 function Hero({ onJoin, nextEvent, registrationCount }) {
   const go = id => document.getElementById(id)?.scrollIntoView({behavior:"smooth"});
 
-  // Calculate real spots left
   const totalSpots = nextEvent?.spots ? parseInt(nextEvent.spots) : null;
   const spotsLeft = totalSpots !== null ? Math.max(0, totalSpots - registrationCount) : null;
   const spotsLabel = spotsLeft === null
@@ -1033,14 +1032,11 @@ function Hero({ onJoin, nextEvent, registrationCount }) {
           </div>
         </div>
         <div className="hero-visual">
-          {/* ── Right floating card: Phone Status (brand statement) ── */}
           <div className="hero-float-card hfc1">
             <div className="hfc-icon">📱</div>
             <div className="hfc-label">Phone Status</div>
             <div className="hfc-val">In Lockbox 🔒</div>
           </div>
-
-          {/* ── Centre: Phone mockup with REAL next event ── */}
           <div className="hero-phone-mockup">
             <div className="phone-notch"/>
             <div className="phone-screen">
@@ -1075,8 +1071,6 @@ function Hero({ onJoin, nextEvent, registrationCount }) {
               )}
             </div>
           </div>
-
-          {/* ── Left floating card: REAL spots left ── */}
           <div className="hero-float-card hfc2">
             <div className="hfc-icon">{spotsIcon}</div>
             <div className="hfc-label">
@@ -1111,7 +1105,8 @@ function Marquee() {
 }
 
 // ─── EVENTS ──────────────────────────────────────────────────
-function EventsSection({ events }) {
+// Step 3 — EventsSection accepts and forwards firebase helpers
+function EventsSection({ events, fbAdd, fbGet, fbUpdate }) {
   const [sel,setSel]=useState(null);
   const GRADS=["linear-gradient(135deg,#1a0a0a,#2a1212)","linear-gradient(135deg,#0a1a16,#0d2820)","linear-gradient(135deg,#0e0a1a,#181030)","linear-gradient(135deg,#1a1200,#2a1e00)"];
   return (
@@ -1158,7 +1153,16 @@ function EventsSection({ events }) {
           </div>
         )}
       </div>
-      {sel && <EventModal event={sel} onClose={()=>setSel(null)}/>}
+      {/* Step 3 — EventModal now receives firebase helpers */}
+      {sel && (
+        <EventModal
+          event={sel}
+          onClose={()=>setSel(null)}
+          fbAdd={fbAdd}
+          fbGet={fbGet}
+          fbUpdate={fbUpdate}
+        />
+      )}
     </section>
   );
 }
@@ -1418,6 +1422,7 @@ function AdminLogin({ onSuccess, onCancel }) {
     </div>
   );
 }
+
 // ─── ADMIN PANEL ─────────────────────────────────────────────
 function AdminPanel({ onClose }) {
   const [tab,setTab]=useState("dashboard");
@@ -1428,12 +1433,11 @@ function AdminPanel({ onClose }) {
   const [chLeads,setChLeads]=useState([]);
   const [photos,setPhotos]=useState([]);
   const [loading,setLoading]=useState(true);
- const [newEv,setNewEv]=useState({
-  title:"", date:"", venue:"", price:"", spots:"",
-  type:"", description:"", emoji:"🎉", color:"",
-  // ── new fields ──
-  timing:"", location:"", refreshments:"", activities:"", imageUrl:""
-});
+  const [newEv,setNewEv]=useState({
+    title:"", date:"", venue:"", price:"", spots:"",
+    type:"", description:"", emoji:"🎉", color:"",
+    timing:"", location:"", refreshments:"", activities:"", imageUrl:""
+  });
   const [photoUrl,setPhotoUrl]=useState(""); const [photoCap,setPhotoCap]=useState("");
   const [saving,setSaving]=useState(false); const [saveMsg,setSaveMsg]=useState("");
 
@@ -1446,32 +1450,34 @@ function AdminPanel({ onClose }) {
   useEffect(()=>{ load(); },[]);
 
   const saveEv = async () => {
-   const priceOk = newEv.price==="0" || newEv.price===0 || (newEv.price!=="" && newEv.price!==null);
-if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price required");
+    const priceOk = newEv.price==="0" || newEv.price===0 || (newEv.price!=="" && newEv.price!==null);
+    if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price required");
     setSaving(true);
     await fbAdd("events",{...newEv,highlighted:true});
     setSaveMsg("✅ Event published! It's now live on the website.");
     setNewEv({title:"",date:"",venue:"",price:"",spots:"",type:"",description:"",emoji:"🎉",color:"",timing:"",location:"",refreshments:"",activities:"",imageUrl:""});
     await load(); setSaving(false); setTimeout(()=>setSaveMsg(""),4000);
   };
+
   const delEv = async (id, title) => {
-  if (!confirm(`Delete "${title}"?\n\nThis will also permanently delete ALL registrations for this event.`)) return;
-  try {
-    await fbDelete("events", id);
-    const d = db();
-    if (d) {
-      const snap = await d.collection("registrations").where("eventId","==",id).get();
-      if (!snap.empty) {
-        const batch = d.batch();
-        snap.docs.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
+    if (!confirm(`Delete "${title}"?\n\nThis will also permanently delete ALL registrations for this event.`)) return;
+    try {
+      await fbDelete("events", id);
+      const d = db();
+      if (d) {
+        const snap = await d.collection("registrations").where("eventId","==",id).get();
+        if (!snap.empty) {
+          const batch = d.batch();
+          snap.docs.forEach(doc => batch.delete(doc.ref));
+          await batch.commit();
+        }
       }
+      await load();
+    } catch(e) {
+      alert("Error deleting: " + e.message);
     }
-    await load();
-  } catch(e) {
-    alert("Error deleting: " + e.message);
-  }
-};
+  };
+
   const updStatus = async (col,id,status) => { await fbUpdate(col,id,{status}); await load(); };
   const addPhoto = async () => {
     if (!photoUrl.trim()) return alert("Enter a photo URL");
@@ -1490,6 +1496,7 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
   const pendingHosts = hosts.filter(h=>h.status==="pending").length;
   const pendingCh = chLeads.filter(c=>c.status==="pending").length;
 
+  // Step 4 — Added "scanner" to NAV
   const NAV = [
     ["dashboard","📊","Dashboard",0],
     ["leads","👥","Community Leads",leads.length],
@@ -1498,6 +1505,7 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
     ["hosts","🌱","Host Requests",pendingHosts],
     ["chapters","🏙️","Chapter Leads",pendingCh],
     ["photos","📸","Gallery",0],
+    ["scanner","🔍","QR Scanner",0],
   ];
 
   return (
@@ -1537,7 +1545,6 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
               <div className="adm-stat" key={l}><div className="adm-stat-ico">{ico}</div><div className="adm-stat-n">{n}</div><div className="adm-stat-l">{l}</div></div>
             ))}
           </div>
-          {/* RECENT LEADS — prominently shown */}
           <div className="adm-card">
             <div className="adm-card-h">
               Recent Community Joins
@@ -1581,7 +1588,7 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
           </div>
         </>}
 
-        {/* COMMUNITY LEADS — FULL TABLE */}
+        {/* COMMUNITY LEADS */}
         {!loading && tab==="leads" && (
           <div className="adm-card">
             <div className="adm-card-h">
@@ -1616,7 +1623,7 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
             <div className="adm-card-h">Create New Event</div>
             {saveMsg && <div className="msg-ok">{saveMsg}</div>}
 
-            {/* ── Row 1: Title + Type ── */}
+            {/* Row 1: Title + Type */}
             <div className="adm-2col">
               <div className="adm-fg">
                 <label className="adm-lbl">Event Title *</label>
@@ -1630,7 +1637,7 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
               </div>
             </div>
 
-            {/* ── Row 2: Date + Timing ── */}
+            {/* Row 2: Date + Timing */}
             <div className="adm-2col">
               <div className="adm-fg">
                 <label className="adm-lbl">Date *</label>
@@ -1644,7 +1651,7 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
               </div>
             </div>
 
-            {/* ── Row 3: Venue + Full Location ── */}
+            {/* Row 3: Venue + Full Location */}
             <div className="adm-2col">
               <div className="adm-fg">
                 <label className="adm-lbl">Venue (short name)</label>
@@ -1658,11 +1665,10 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
               </div>
             </div>
 
-            {/* ── Row 4: Price toggle + Spots ── */}
+            {/* Row 4: Price toggle + Spots */}
             <div className="adm-2col">
               <div className="adm-fg">
                 <label className="adm-lbl">Entry Fee (₹)</label>
-                {/* Free toggle */}
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
                   <label style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",fontSize:13,fontWeight:600,color:"var(--ink2)"}}>
                     <input
@@ -1696,7 +1702,7 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
               </div>
             </div>
 
-            {/* ── Row 5: Refreshments + Activities ── */}
+            {/* Row 5: Refreshments + Activities */}
             <div className="adm-2col">
               <div className="adm-fg">
                 <label className="adm-lbl">
@@ -1725,7 +1731,7 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
               </div>
             </div>
 
-            {/* ── Row 6: Emoji + Image URL ── */}
+            {/* Row 6: Emoji + Image URL */}
             <div className="adm-2col">
               <div className="adm-fg">
                 <label className="adm-lbl">Emoji</label>
@@ -1739,14 +1745,40 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
               </div>
             </div>
 
-            {/* ── Description ── */}
+            {/* Step 5 — EVENT_EXTRA_FIELDS from EventRegistrationSystem */}
+            <div style={{marginTop:12,borderTop:"1px solid var(--border2)",paddingTop:14}}>
+              <div className="adm-lbl" style={{marginBottom:12}}>⏰ Timings & Location</div>
+              <div className="adm-2col">
+                {EVENT_EXTRA_FIELDS.slice(0,6).map(({key,label,placeholder}) => (
+                  <div className="adm-fg" key={key}>
+                    <label className="adm-lbl">{label}</label>
+                    <input className="adm-inp" placeholder={placeholder}
+                      value={newEv[key]||""}
+                      onChange={e=>setNewEv(p=>({...p,[key]:e.target.value}))}/>
+                  </div>
+                ))}
+              </div>
+              <div className="adm-lbl" style={{marginBottom:12,marginTop:12}}>🎮 Activities & Extras</div>
+              <div className="adm-2col">
+                {EVENT_EXTRA_FIELDS.slice(6).map(({key,label,placeholder}) => (
+                  <div className="adm-fg" key={key}>
+                    <label className="adm-lbl">{label}</label>
+                    <input className="adm-inp" placeholder={placeholder}
+                      value={newEv[key]||""}
+                      onChange={e=>setNewEv(p=>({...p,[key]:e.target.value}))}/>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Description */}
             <div className="adm-fg">
               <label className="adm-lbl">Description</label>
               <textarea className="adm-ta" placeholder="Describe the event — what to expect, what to bring, vibe…"
                 value={newEv.description} onChange={e=>setNewEv(p=>({...p,description:e.target.value}))}/>
             </div>
 
-            {/* ── Preview strip ── */}
+            {/* Preview strip */}
             {newEv.title && (
               <div style={{
                 background:"var(--paper)",border:"1.5px solid var(--border2)",
@@ -1780,7 +1812,7 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
             </button>
           </div>
 
-          {/* ── ALL EVENTS TABLE ── */}
+          {/* ALL EVENTS TABLE */}
           <div className="adm-card">
             <div className="adm-card-h">
               All Events ({events.length})
@@ -1837,7 +1869,8 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
             }
           </div>
         </>}
-{/* REGISTRATIONS */}
+
+        {/* REGISTRATIONS */}
         {!loading && tab==="registrations" && (
           <div className="adm-card">
             <div className="adm-card-h">Event Registrations <button className="btn btn-sm btn-dark" onClick={()=>exportCSV(regs,"registrations")}>📥 Export</button></div>
@@ -1900,6 +1933,7 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
             )}
           </div>
         )}
+
         {/* CHAPTER LEADS */}
         {!loading && tab==="chapters" && (
           <div className="adm-card">
@@ -1939,6 +1973,15 @@ if (!newEv.title || !newEv.date || !priceOk) return alert("Title, date and price
             )}
           </div>
         </>}
+
+        {/* Step 4 — QR SCANNER TAB */}
+        {!loading && tab==="scanner" && (
+          <VolunteerScanner
+            onClose={()=>setTab("dashboard")}
+            fbGet={fbGet}
+            fbUpdate={fbUpdate}
+          />
+        )}
       </div>
     </div>
   );
@@ -1984,7 +2027,8 @@ export default function App() {
 
   return (
     <>
-      <style>{STYLES}</style>
+      {/* Step 2 — STYLES + REGISTRATION_STYLES combined */}
+      <style>{STYLES + REGISTRATION_STYLES}</style>
       <Cursor/>
       {popup && <Popup onClose={()=>setPopup(false)}/>}
       {showAdminLogin && (
@@ -2000,7 +2044,8 @@ export default function App() {
       <Navbar onJoin={()=>setPopup(true)}/>
       <Hero onJoin={()=>setPopup(true)} nextEvent={nextEvent} registrationCount={nextEventRegs}/>
       <Marquee/>
-      <EventsSection events={events}/>
+      {/* Step 3 — EventsSection receives firebase helpers */}
+      <EventsSection events={events} fbAdd={fbAdd} fbGet={fbGet} fbUpdate={fbUpdate}/>
       <Stats/>
       <Experiences/>
       <Chapters onHost={()=>setHost(true)}/>
