@@ -761,7 +761,7 @@ export function EventModal({ event, onClose, fbAdd, fbGet, fbUpdate }) {
               </div>
 
               <div style={{background:"rgba(255,179,0,.08)",border:"1px solid rgba(255,179,0,.2)",borderRadius:10,padding:"9px 13px",fontSize:12,color:"#78716C",marginBottom:16,lineHeight:1.6}}>
-                💡 Your ticket will be emailed to this address automatically. One registration per mobile number per event.
+                💡 Don't Forget to Download your Ticket after Registration.No Ticket No Entry.
               </div>
 
               <div className="reg-btn-row">
