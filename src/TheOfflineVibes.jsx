@@ -5,7 +5,7 @@ import {
   VolunteerScanner,
   REGISTRATION_STYLES,
   EVENT_EXTRA_FIELDS,
-} from "./EventRegistrationSystem";
+} from "./EventRegistration";
 
 // ─── FIREBASE CONFIG (already configured) ───────────────────
 const FB_CONFIG = {
