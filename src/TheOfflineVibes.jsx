@@ -1106,9 +1106,13 @@ function Marquee() {
 
 // ─── EVENTS ──────────────────────────────────────────────────
 // Step 3 — EventsSection accepts and forwards firebase helpers
-function EventsSection({ events, fbAdd, fbGet, fbUpdate }) {
-  const [sel,setSel]=useState(null);
-  const GRADS=["linear-gradient(135deg,#1a0a0a,#2a1212)","linear-gradient(135deg,#0a1a16,#0d2820)","linear-gradient(135deg,#0e0a1a,#181030)","linear-gradient(135deg,#1a1200,#2a1e00)"];
+function EventsSection({ events, fbAdd, fbGet, fbUpdate, registrations }) {
+  const [sel, setSel] = useState(null);
+  const GRADS = ["linear-gradient(135deg,#1a0a0a,#2a1212)","linear-gradient(135deg,#0a1a16,#0d2820)","linear-gradient(135deg,#0e0a1a,#181030)","linear-gradient(135deg,#1a1200,#2a1e00)"];
+
+  // Count registrations per event
+  const regCount = (eventId) => registrations.filter(r => r.eventId === eventId).length;
+
   return (
     <section className="sec events-sec" id="events">
       <div className="sec-inner">
@@ -1119,7 +1123,7 @@ function EventsSection({ events, fbAdd, fbGet, fbUpdate }) {
             <p className="sec-sub">Real experiences. All events posted live by our team — no dummies.</p>
           </div>
         </div>
-        {events.length===0 ? (
+        {events.length === 0 ? (
           <div className="empty-box">
             <div className="empty-emoji">🎪</div>
             <div className="empty-title">No Events Yet</div>
@@ -1127,40 +1131,106 @@ function EventsSection({ events, fbAdd, fbGet, fbUpdate }) {
           </div>
         ) : (
           <div className="events-grid">
-            {events.map((ev,i)=>(
-              <div key={ev.id} className={`ev-card${i===0?" featured":""}`} onClick={()=>setSel(ev)}>
-                <div className="ev-card-img" style={{background:ev.color||GRADS[i%GRADS.length]}}>
-                  {ev.imageUrl && <img src={ev.imageUrl} alt={ev.title}/>}
-                  <div className="ev-card-img-overlay"/>
-                  {i===0 && <div className="ev-new-badge">NEW ✦</div>}
-                  <div style={{position:"relative",zIndex:2,fontSize:44}}>{!ev.imageUrl && (ev.emoji||"🎉")}</div>
-                </div>
-                <div className="ev-card-body">
-                  <div className="ev-type">{ev.type||"Experience"}</div>
-                  <div className="ev-title">{ev.title}</div>
-                  <div className="ev-meta">
-                    <span>📅 {ev.date}</span>
-                    <span>📍 {ev.venue||"—"}</span>
-                    <span>👥 {ev.spots||"Limited"} spots</span>
+            {events.map((ev, i) => {
+              const totalSpots = ev.spots ? parseInt(ev.spots) : null;
+              const registered = regCount(ev.id);
+              const spotsLeft = totalSpots !== null ? Math.max(0, totalSpots - registered) : null;
+              const isSoldOut = spotsLeft === 0;
+              const isAlmostFull = spotsLeft !== null && spotsLeft > 0 && spotsLeft <= 5;
+
+              return (
+                <div
+                  key={ev.id}
+                  className={`ev-card${i === 0 ? " featured" : ""}${isSoldOut ? " sold-out" : ""}`}
+                  onClick={() => !isSoldOut && setSel(ev)}
+                  style={isSoldOut ? { cursor: "not-allowed", opacity: 0.75 } : {}}
+                >
+                  <div className="ev-card-img" style={{ background: ev.color || GRADS[i % GRADS.length] }}>
+                    {ev.imageUrl && <img src={ev.imageUrl} alt={ev.title} />}
+                    <div className="ev-card-img-overlay" />
+                    {i === 0 && !isSoldOut && <div className="ev-new-badge">NEW ✦</div>}
+                    {isSoldOut && <div className="ev-new-badge" style={{ background: "#555" }}>SOLD OUT</div>}
+                    {isAlmostFull && !isSoldOut && (
+                      <div className="ev-new-badge" style={{ background: "#FF7043" }}>🔥 {spotsLeft} LEFT</div>
+                    )}
+                    <div style={{ position: "relative", zIndex: 2, fontSize: 44 }}>
+                      {!ev.imageUrl && (ev.emoji || "🎉")}
+                    </div>
                   </div>
-                  <div className="ev-footer">
-                    <div className="ev-price">₹{ev.price}<small>/person</small></div>
-                    <button className="btn btn-sun btn-sm">Register</button>
+
+                  <div className="ev-card-body">
+                    <div className="ev-type">{ev.type || "Experience"}</div>
+                    <div className="ev-title">{ev.title}</div>
+                    <div className="ev-meta">
+                      <span>📅 {ev.date}</span>
+                      <span>📍 {ev.venue || "—"}</span>
+
+                      {/* ── Live spots counter ── */}
+                      {totalSpots !== null ? (
+                        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          👥
+                          <span style={{
+                            color: isSoldOut ? "#C62828" : isAlmostFull ? "#FF7043" : "#43A047",
+                            fontWeight: 700,
+                          }}>
+                            {isSoldOut
+                              ? "Sold Out"
+                              : isAlmostFull
+                              ? `Only ${spotsLeft} of ${totalSpots} spots left!`
+                              : `${spotsLeft} of ${totalSpots} spots left`}
+                          </span>
+                        </span>
+                      ) : (
+                        <span>👥 Limited spots</span>
+                      )}
+
+                      {/* Mini progress bar */}
+                      {totalSpots !== null && (
+                        <div style={{
+                          height: 4, background: "rgba(28,25,23,.1)",
+                          borderRadius: 4, overflow: "hidden", marginTop: 2,
+                        }}>
+                          <div style={{
+                            height: "100%",
+                            width: `${Math.min(100, (registered / totalSpots) * 100)}%`,
+                            background: isSoldOut ? "#C62828" : isAlmostFull ? "#FF7043" : "#43A047",
+                            borderRadius: 4,
+                            transition: "width .5s ease",
+                          }} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="ev-footer">
+                      <div className="ev-price">
+                        {ev.price === "0" || ev.price === 0
+                          ? <span style={{ color: "#43A047", fontSize: 18 }}>FREE</span>
+                          : <>₹{ev.price}<small>/person</small></>
+                        }
+                      </div>
+                      <button
+                        className="btn btn-sun btn-sm"
+                        disabled={isSoldOut}
+                        style={isSoldOut ? { opacity: 0.5, cursor: "not-allowed" } : {}}
+                      >
+                        {isSoldOut ? "Sold Out" : "Register"}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
-      {/* Step 3 — EventModal now receives firebase helpers */}
       {sel && (
         <EventModal
           event={sel}
-          onClose={()=>setSel(null)}
+          onClose={() => setSel(null)}
           fbAdd={fbAdd}
           fbGet={fbGet}
           fbUpdate={fbUpdate}
+          registrations={registrations}
         />
       )}
     </section>
